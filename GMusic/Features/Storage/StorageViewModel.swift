@@ -31,8 +31,13 @@ final class StorageViewModel: ObservableObject {
     }
 
     func refreshStats() async {
-        audioSizeBytes = fileStorage.sizeOfDirectory(storagePaths.audioDirectory)
-        artworkSizeBytes = fileStorage.sizeOfDirectory(storagePaths.artworkDirectory)
+        let fileStorage = fileStorage
+        let audioDirectory = storagePaths.audioDirectory
+        let artworkDirectory = storagePaths.artworkDirectory
+        async let audioSize = Task.detached { fileStorage.sizeOfDirectory(audioDirectory) }.value
+        async let artworkSize = Task.detached { fileStorage.sizeOfDirectory(artworkDirectory) }.value
+        audioSizeBytes = await audioSize
+        artworkSizeBytes = await artworkSize
         trackCount = (try? await trackRepository.listTracks()).map(\.count) ?? 0
     }
 
