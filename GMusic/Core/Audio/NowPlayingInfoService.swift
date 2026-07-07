@@ -9,6 +9,7 @@ final class NowPlayingInfoService {
         album: String?,
         duration: TimeInterval,
         elapsedTime: TimeInterval,
+        playbackRate: Float,
         isPlaying: Bool,
         artwork: MPMediaItemArtwork?
     ) {
@@ -17,7 +18,7 @@ final class NowPlayingInfoService {
             MPMediaItemPropertyArtist: artist,
             MPMediaItemPropertyPlaybackDuration: duration,
             MPNowPlayingInfoPropertyElapsedPlaybackTime: elapsedTime,
-            MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? 1.0 : 0.0
+            MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? playbackRate : 0.0
         ]
         if let album {
             info[MPMediaItemPropertyAlbumTitle] = album
@@ -26,9 +27,11 @@ final class NowPlayingInfoService {
             info[MPMediaItemPropertyArtwork] = artwork
         }
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
+        MPNowPlayingInfoCenter.default().playbackState = isPlaying ? .playing : .paused
     }
 
     func clear() {
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+        MPNowPlayingInfoCenter.default().playbackState = .stopped
     }
 }

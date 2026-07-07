@@ -10,7 +10,8 @@ struct StorageView: View {
             storagePaths: appEnvironment.storagePaths,
             trackRepository: appEnvironment.trackRepository,
             externalDuplicateScanner: appEnvironment.externalDuplicateScanner,
-            externalDuplicateCleaner: appEnvironment.externalDuplicateCleaner
+            externalDuplicateCleaner: appEnvironment.externalDuplicateCleaner,
+            demoAudioSeeder: appEnvironment.demoAudioSeeder
         ))
     }
 
@@ -24,6 +25,19 @@ struct StorageView: View {
                 }
 
                 Section("Find Duplicates Outside the Library") {
+                    if let demoDuplicateFolderName = viewModel.demoDuplicateFolderName {
+                        Button {
+                            Task { await viewModel.scanDemoDuplicateFolder() }
+                        } label: {
+                            Label("Scan \(demoDuplicateFolderName)", systemImage: "sparkles.rectangle.stack")
+                        }
+                        .disabled(viewModel.isScanning)
+
+                        Text("After importing the demo tracks, this scans the nested duplicate-only demo folder so you can test safe cleanup immediately.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+
                     Button {
                         isPickingFolder = true
                     } label: {

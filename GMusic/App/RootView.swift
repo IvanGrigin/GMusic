@@ -3,10 +3,12 @@ import SwiftUI
 struct RootView: View {
     @ObservedObject var appEnvironment: AppEnvironment
     @ObservedObject var playerService: PlayerService
+    @ObservedObject private var appearanceSettings: AppAppearanceSettings
 
     init(appEnvironment: AppEnvironment) {
         self.appEnvironment = appEnvironment
         self.playerService = appEnvironment.playerService
+        self.appearanceSettings = appEnvironment.appearanceSettings
     }
 
     var body: some View {
@@ -27,7 +29,10 @@ struct RootView: View {
 
             MiniPlayerView(appEnvironment: appEnvironment)
         }
+        .tint(appearanceSettings.tintColor)
+        .preferredColorScheme(appearanceSettings.preferredColorScheme)
         .environmentObject(appEnvironment)
         .environmentObject(playerService)
+        .environmentObject(appearanceSettings)
     }
 }

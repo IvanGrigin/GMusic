@@ -12,6 +12,7 @@ final class AppEnvironment: ObservableObject {
     let artworkFileStore: ArtworkFileStore
     let fileHashingService: FileHashingService
     let folderBookmarkStore: FolderBookmarkStore
+    let appearanceSettings: AppAppearanceSettings
 
     let trackRepository: TrackRepository
     let albumRepository: AlbumRepository
@@ -21,8 +22,10 @@ final class AppEnvironment: ObservableObject {
     let metadataReader: MetadataReader
     let artworkExtractor: EmbeddedArtworkExtractor
     let filenameParser: FilenameParser
+    let demoAudioSeeder: SimulatorDemoAudioSeeder
     let importPipeline: ImportPipeline
     let importScanner: ImportScanner
+    let librarySnapshotStore: LibrarySnapshotStore
 
     let sourceDeletionService: SourceDeletionService
     let externalDuplicateScanner: ExternalDuplicateScanner
@@ -47,6 +50,7 @@ final class AppEnvironment: ObservableObject {
         artworkFileStore = ArtworkFileStore(paths: paths)
         fileHashingService = FileHashingService()
         folderBookmarkStore = FolderBookmarkStore()
+        appearanceSettings = AppAppearanceSettings()
 
         trackRepository = TrackRepository(modelContainer: modelContainer)
         albumRepository = AlbumRepository(modelContainer: modelContainer)
@@ -56,6 +60,7 @@ final class AppEnvironment: ObservableObject {
         metadataReader = MetadataReader()
         artworkExtractor = EmbeddedArtworkExtractor()
         filenameParser = FilenameParser()
+        demoAudioSeeder = SimulatorDemoAudioSeeder()
 
         let policy = ImportPolicy()
         importPolicy = policy
@@ -73,6 +78,12 @@ final class AppEnvironment: ObservableObject {
             policy: policy
         )
         importScanner = ImportScanner()
+        librarySnapshotStore = LibrarySnapshotStore(
+            storagePaths: paths,
+            trackRepository: trackRepository,
+            albumRepository: albumRepository,
+            playlistRepository: playlistRepository
+        )
 
         sourceDeletionService = SourceDeletionService(fileStorage: storage, fileHashingService: fileHashingService)
         externalDuplicateScanner = ExternalDuplicateScanner(

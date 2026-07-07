@@ -42,6 +42,27 @@ to be valid.
    Screen / Control Center controls to work.
 7. Build and run on an iOS 17+ simulator or device.
 
+## Simulator demo music
+
+On iPhone Simulator builds, GMusic automatically generates a nested demo import
+tree inside `Documents/GMusic Demo Imports`.
+
+- `01 Quick File Imports/` contains files meant for multi-select file import.
+- `02 Album Folders/Aurora Sessions/...` demonstrates recursive folder import
+  across inner folders.
+- `03 Mixed Sources/Live Sets/...` adds a deeper nested branch.
+- `04 Duplicates To Clean/...` contains exact byte-for-byte duplicates for the
+  duplicate scanner / cleaner flow.
+
+1. Open the **Import** tab.
+2. Tap **Import Demo Files** to simulate choosing many individual files at once.
+3. Tap **Import Demo Folder Recursively** to test folder import across nested
+   subfolders.
+4. Open the app's documents folder in the Files app if you want to inspect the
+   raw structure manually.
+5. After importing, open **Storage** and scan `04 Duplicates To Clean` (or the
+   whole demo root) to test external duplicate detection and deletion.
+
 No third-party dependencies are used — every `import` in this codebase
 (`SwiftUI`, `SwiftData`, `AVFoundation`, `MediaPlayer`, `CryptoKit`, `UIKit`,
 `PhotosUI`, `UniformTypeIdentifiers`) is a system framework, so there is

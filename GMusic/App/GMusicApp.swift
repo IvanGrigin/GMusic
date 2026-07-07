@@ -39,6 +39,7 @@ final class AppBootstrapper: ObservableObject {
     }
 
     @Published private(set) var state: State = .loading
+    private var hasStartedStartupTasks = false
 
     init() {
         do {
@@ -50,14 +51,58 @@ final class AppBootstrapper: ObservableObject {
     }
 
     func runStartupTasks(appEnvironment: AppEnvironment) async {
-        _ = try? await appEnvironment.importPipeline.recoverUnfinishedImports()
-        if appEnvironment.importPolicy.scanDownloadsOnLaunch,
-           appEnvironment.folderBookmarkStore.hasBookmarkedFolder,
-           let folderURL = appEnvironment.folderBookmarkStore.resolveBookmarkedFolder() {
-            try? await SecurityScopedAccess.withAccessAsync(to: folderURL) {
-                let files = appEnvironment.importScanner.findAudioFiles(in: folderURL)
-                _ = await appEnvironment.importPipeline.importFiles(sourceURLs: files, isSecurityScoped: false)
-            }
+        guard !hasStartedStartupTasks else { return }
+        hasStartedStartupTasks = true
+        await appEnvironment.appearanceSettings.applyAppIcon()
+        let startupMaintenance = StartupMaintenanceRunner(
+            importPipeline: appEnvironment.importPipeline,
+            importScanner: appEnvironment.importScanner,
+            folderBookmarkStore: appEnvironment.folderBookmarkStore,
+            importPolicy: appEnvironment.importPolicy,
+            librarySnapshotStore: appEnvironment.librarySnapshotStore
+        )
+        Task.detached(priority: .utility) {
+            await startupMaintenance.run()
         }
+    }
+}
+
+actor StartupMaintenanceRunner {
+    private let importPipeline: ImportPipeline
+    private let importScanner: ImportScanner
+    private let folderBookmarkStore: FolderBookmarkStore
+    private let importPolicy: ImportPolicy
+    private let librarySnapshotStore: LibrarySnapshotStore
+
+    init(
+        importPipeline: ImportPipeline,
+        importScanner: ImportScanner,
+        folderBookmarkStore: FolderBookmarkStore,
+        importPolicy: ImportPolicy,
+        librarySnapshotStore: LibrarySnapshotStore
+    ) {
+        self.importPipeline = importPipeline
+        self.importScanner = importScanner
+        self.folderBookmarkStore = folderBookmarkStore
+        self.importPolicy = importPolicy
+        self.librarySnapshotStore = librarySnapshotStore
+    }
+
+    func run() async {
+        _ = try? await importPipeline.recoverUnfinishedImports()
+        _ = await librarySnapshotStore.refreshSnapshot()
+
+        guard importPolicy.scanDownloadsOnLaunch,
+              folderBookmarkStore.hasBookmarkedFolder,
+              let folderURL = folderBookmarkStore.resolveBookmarkedFolder() else {
+            return
+        }
+
+        try? await SecurityScopedAccess.withAccessAsync(to: folderURL) {
+            let files = importScanner.findAudioFiles(in: folderURL)
+            guard !files.isEmpty else { return }
+            _ = await importPipeline.importFiles(sourceURLs: files, isSecurityScoped: false)
+        }
+        _ = await librarySnapshotStore.refreshSnapshot()
     }
 }

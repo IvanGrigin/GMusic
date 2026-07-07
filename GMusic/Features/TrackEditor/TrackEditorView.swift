@@ -5,6 +5,7 @@ struct TrackEditorView: View {
     @StateObject private var viewModel: TrackEditorViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var photoItem: PhotosPickerItem?
+    @State private var pendingArtwork: ArtworkDraft?
     let onSaved: () -> Void
 
     init(appEnvironment: AppEnvironment, track: Track, onSaved: @escaping () -> Void) {
@@ -31,6 +32,11 @@ struct TrackEditorView: View {
                         Spacer()
                     }
                     PhotosPicker("Choose Artwork", selection: $photoItem, matching: .images)
+                    if viewModel.artworkID != nil {
+                        Button("Remove Artwork", role: .destructive) {
+                            viewModel.removeArtwork()
+                        }
+                    }
                 }
 
                 Section("Metadata") {
@@ -72,8 +78,14 @@ struct TrackEditorView: View {
             .onChange(of: photoItem) { _, newValue in
                 Task {
                     if let newValue, let data = try? await newValue.loadTransferable(type: Data.self) {
-                        viewModel.setArtwork(imageData: data)
+                        pendingArtwork = ArtworkDraft(imageData: data)
                     }
+                    photoItem = nil
+                }
+            }
+            .sheet(item: $pendingArtwork) { draft in
+                SquareArtworkEditorSheet(imageData: draft.imageData) { renderedData in
+                    viewModel.setArtwork(imageData: renderedData)
                 }
             }
         }

@@ -22,20 +22,21 @@ struct ArtworkView: View {
     @State private var loadedImage: UIImage?
 
     var body: some View {
-        Group {
-            if let loadedImage {
-                Image(uiImage: loadedImage)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-            } else {
-                ZStack {
-                    Rectangle().fill(Color.secondary.opacity(0.2))
-                    Image(systemName: "music.note")
-                        .foregroundStyle(.secondary)
+        GeometryReader { proxy in
+            ZStack {
+                if let loadedImage {
+                    Image(uiImage: loadedImage)
+                        .resizable()
+                        .scaledToFill()
+                } else {
+                    BrandArtworkPlaceholder(cornerRadius: cornerRadius)
                 }
             }
+            .frame(width: proxy.size.width, height: proxy.size.height)
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .clipped()
         }
-        .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+        .aspectRatio(1, contentMode: .fit)
         .task(id: imageURL) {
             await loadImage()
         }

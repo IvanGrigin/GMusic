@@ -5,19 +5,71 @@ struct ImportInboxView: View {
     @StateObject private var viewModel: ImportInboxViewModel
     @State private var isPickingFiles = false
     @State private var isPickingFolder = false
+    @State private var isImportingFolderOnce = false
 
     init(appEnvironment: AppEnvironment) {
         _viewModel = StateObject(wrappedValue: ImportInboxViewModel(
             importPipeline: appEnvironment.importPipeline,
             importRecordRepository: appEnvironment.importRecordRepository,
             importScanner: appEnvironment.importScanner,
-            folderBookmarkStore: appEnvironment.folderBookmarkStore
+            folderBookmarkStore: appEnvironment.folderBookmarkStore,
+            demoAudioSeeder: appEnvironment.demoAudioSeeder,
+            librarySnapshotStore: appEnvironment.librarySnapshotStore
         ))
     }
 
     var body: some View {
         NavigationStack {
             List {
+                if let demoFolderName = viewModel.demoFolderName {
+                    Section("Simulator Demo") {
+                        Text("Simulator builds generate a nested demo library in Documents so you can test single-file import, recursive folder import, inner folders, and duplicate cleanup.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+
+                        LabeledContent("Demo Root", value: demoFolderName)
+                        LabeledContent("Audio Files", value: "\(viewModel.demoTrackCount)")
+                        LabeledContent("Unique Tracks", value: "\(viewModel.demoUniqueTrackCount)")
+                        LabeledContent("Exact Duplicates", value: "\(viewModel.demoDuplicateCount)")
+                        LabeledContent("Nested Folders", value: "\(viewModel.demoFolderCount)")
+
+                        if let duplicateFolderName = viewModel.demoDuplicateFolderName {
+                            Text("Use \(duplicateFolderName) later in Storage to test deleting duplicates outside the library.")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        if !viewModel.demoStructurePreview.isEmpty {
+                            ForEach(viewModel.demoStructurePreview, id: \.self) { path in
+                                Label(path, systemImage: "folder")
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+
+                        Button {
+                            Task { await viewModel.importDemoTracks() }
+                        } label: {
+                            Label("Import Demo Files", systemImage: "music.note.badge.plus")
+                        }
+                        .disabled(viewModel.isImporting || !viewModel.hasDemoTracks)
+
+                        Button {
+                            Task { await viewModel.importDemoFolderRecursively() }
+                        } label: {
+                            Label("Import Demo Folder Recursively", systemImage: "folder.badge.plus")
+                        }
+                        .disabled(viewModel.isImporting || !viewModel.hasDemoTracks)
+
+                        Button {
+                            viewModel.restoreDemoTracks()
+                        } label: {
+                            Label("Regenerate Demo Folder", systemImage: "arrow.triangle.2.circlepath")
+                        }
+                        .disabled(viewModel.isImporting)
+                    }
+                }
+
                 Section {
                     Button {
                         isPickingFiles = true
@@ -25,6 +77,21 @@ struct ImportInboxView: View {
                         Label("Import Files", systemImage: "doc.badge.plus")
                     }
                     .disabled(viewModel.isImporting)
+
+                    Text("You can choose several songs at once from Files.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+
+                    Button {
+                        isImportingFolderOnce = true
+                    } label: {
+                        Label("Import Folder Files", systemImage: "folder.badge.plus")
+                    }
+                    .disabled(viewModel.isImporting)
+
+                    Text("Folder import scans inner folders recursively and will skip exact duplicates by hash when that setting is enabled.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
 
                     if let folderURL = viewModel.connectedFolderURL {
                         Label("Connected: \(folderURL.lastPathComponent)", systemImage: "folder.fill")
@@ -51,7 +118,11 @@ struct ImportInboxView: View {
                     if viewModel.isImporting {
                         HStack {
                             ProgressView()
-                            Text("Importing…")
+                            if viewModel.importQueueCount > 0 {
+                                Text("Importing \(viewModel.importQueueCount) file(s)…")
+                            } else {
+                                Text("Importing…")
+                            }
                         }
                     }
                     if let summary = viewModel.lastImportSummary {
@@ -97,6 +168,14 @@ struct ImportInboxView: View {
             ) { result in
                 if case .success(let url) = result {
                     viewModel.connectFolder(url: url)
+                }
+            }
+            .fileImporter(
+                isPresented: $isImportingFolderOnce,
+                allowedContentTypes: [.folder]
+            ) { result in
+                if case .success(let url) = result {
+                    Task { await viewModel.importFolder(url: url) }
                 }
             }
         }

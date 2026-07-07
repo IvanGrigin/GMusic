@@ -25,7 +25,7 @@ struct QueueView: View {
                     }
                     .contentShape(Rectangle())
                     .onTapGesture {
-                        Task { await playerService.playQueue(trackIDs: playerService.queueItems.map(\.trackID), startAt: index) }
+                        Task { await playerService.jumpToQueueIndex(index) }
                     }
                 }
                 .onDelete { offsets in

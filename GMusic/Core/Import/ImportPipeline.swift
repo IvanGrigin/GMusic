@@ -58,11 +58,35 @@ final class ImportPipeline {
 
     @discardableResult
     func importFiles(sourceURLs: [URL], isSecurityScoped: Bool = false) async -> [ImportOutcome] {
-        var outcomes: [ImportOutcome] = []
-        for url in sourceURLs {
-            outcomes.append(await importFile(sourceURL: url, isSecurityScoped: isSecurityScoped))
+        let uniqueURLs = orderedUniqueURLs(from: sourceURLs)
+        guard !uniqueURLs.isEmpty else { return [] }
+
+        let parallelism = min(4, max(1, ProcessInfo.processInfo.activeProcessorCount))
+        var nextIndex = 0
+        var iterator = uniqueURLs.enumerated().makeIterator()
+        var indexedOutcomes: [(Int, ImportOutcome)] = []
+
+        await withTaskGroup(of: (Int, ImportOutcome).self) { group in
+            while nextIndex < parallelism, let (index, url) = iterator.next() {
+                nextIndex += 1
+                group.addTask {
+                    (index, await self.importFile(sourceURL: url, isSecurityScoped: isSecurityScoped))
+                }
+            }
+
+            while let result = await group.next() {
+                indexedOutcomes.append(result)
+                if let (index, url) = iterator.next() {
+                    group.addTask {
+                        (index, await self.importFile(sourceURL: url, isSecurityScoped: isSecurityScoped))
+                    }
+                }
+            }
         }
-        return outcomes
+
+        return indexedOutcomes
+            .sorted { $0.0 < $1.0 }
+            .map(\.1)
     }
 
     @discardableResult
@@ -257,5 +281,20 @@ final class ImportPipeline {
             return 0
         }
         return size.int64Value
+    }
+
+    private func orderedUniqueURLs(from urls: [URL]) -> [URL] {
+        var seen: Set<String> = []
+        var unique: [URL] = []
+        unique.reserveCapacity(urls.count)
+
+        for url in urls {
+            let key = url.standardizedFileURL.path
+            if seen.insert(key).inserted {
+                unique.append(url)
+            }
+        }
+
+        return unique
     }
 }

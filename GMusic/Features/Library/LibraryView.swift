@@ -3,6 +3,7 @@ import SwiftUI
 enum LibrarySection: String, CaseIterable, Identifiable {
     case tracks = "Tracks"
     case albums = "Albums"
+    case artists = "Artists"
     case playlists = "Playlists"
     var id: String { rawValue }
 }
@@ -20,7 +21,8 @@ struct LibraryView: View {
         _viewModel = StateObject(wrappedValue: LibraryViewModel(
             trackRepository: appEnvironment.trackRepository,
             albumRepository: appEnvironment.albumRepository,
-            playlistRepository: appEnvironment.playlistRepository
+            playlistRepository: appEnvironment.playlistRepository,
+            librarySnapshotStore: appEnvironment.librarySnapshotStore
         ))
     }
 
@@ -44,6 +46,7 @@ struct LibraryView: View {
                             Button("Title") { Task { await viewModel.changeSort(.titleAscending) } }
                             Button("Artist") { Task { await viewModel.changeSort(.artistAscending) } }
                             Button("Recently Imported") { Task { await viewModel.changeSort(.recentlyImported) } }
+                            Button("Most Played") { Task { await viewModel.changeSort(.mostPlayed) } }
                         } label: {
                             Image(systemName: "arrow.up.arrow.down.circle")
                         }
@@ -54,8 +57,15 @@ struct LibraryView: View {
                         Button { isCreatingPlaylist = true } label: { Image(systemName: "plus") }
                     }
                 }
+                if section == .artists {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Normalize Case") {
+                            Task { await viewModel.normalizeArtistsByCase() }
+                        }
+                    }
+                }
             }
-            .searchable(text: $viewModel.searchText, prompt: "Search tracks")
+            .searchable(text: $viewModel.searchText, prompt: searchPrompt)
             .sheet(item: $editingTrack) { track in
                 TrackEditorView(appEnvironment: appEnvironment, track: track) {
                     Task { await viewModel.loadAll() }
@@ -72,7 +82,7 @@ struct LibraryView: View {
                 }
             }
         }
-        .task { await viewModel.loadAll() }
+        .task { await viewModel.bootstrap() }
     }
 
     @ViewBuilder
@@ -82,8 +92,19 @@ struct LibraryView: View {
             trackList
         case .albums:
             albumList
+        case .artists:
+            artistList
         case .playlists:
             playlistList
+        }
+    }
+
+    private var searchPrompt: String {
+        switch section {
+        case .tracks: "Search tracks"
+        case .albums: "Search albums"
+        case .artists: "Search artists"
+        case .playlists: "Search playlists"
         }
     }
 
@@ -146,7 +167,7 @@ struct LibraryView: View {
     }
 
     private var albumList: some View {
-        List(viewModel.albums) { album in
+        List(viewModel.filteredAlbums) { album in
             NavigationLink {
                 AlbumDetailView(appEnvironment: appEnvironment, album: album, libraryViewModel: viewModel)
             } label: {
@@ -162,7 +183,7 @@ struct LibraryView: View {
         }
         .listStyle(.plain)
         .overlay {
-            if viewModel.albums.isEmpty {
+            if viewModel.filteredAlbums.isEmpty {
                 ContentUnavailableView("No Albums", systemImage: "square.stack")
             }
         }
@@ -170,7 +191,7 @@ struct LibraryView: View {
 
     private var playlistList: some View {
         List {
-            ForEach(viewModel.playlists) { playlist in
+            ForEach(viewModel.filteredPlaylists) { playlist in
                 NavigationLink {
                     PlaylistDetailView(appEnvironment: appEnvironment, playlist: playlist, libraryViewModel: viewModel)
                 } label: {
@@ -186,15 +207,48 @@ struct LibraryView: View {
             }
             .onDelete { offsets in
                 for index in offsets {
-                    let playlist = viewModel.playlists[index]
+                    let playlist = viewModel.filteredPlaylists[index]
                     Task { await viewModel.deletePlaylist(playlist) }
                 }
             }
         }
         .listStyle(.plain)
         .overlay {
-            if viewModel.playlists.isEmpty {
+            if viewModel.filteredPlaylists.isEmpty {
                 ContentUnavailableView("No Playlists", systemImage: "music.note.list")
+            }
+        }
+    }
+
+    private var artistList: some View {
+        List(viewModel.filteredArtists) { artist in
+            NavigationLink {
+                ArtistPlaylistDetailView(appEnvironment: appEnvironment, artist: artist, libraryViewModel: viewModel)
+            } label: {
+                HStack(spacing: 12) {
+                    ArtworkView(imageURL: artist.artworkID.map { appEnvironment.artworkFileStore.url(forArtworkID: $0) })
+                        .frame(width: 48, height: 48)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(artist.displayName).font(.body)
+                        Text("Artist Playlist • \(artist.trackCount) tracks")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    if artist.alternateNames.count > 1 {
+                        Spacer()
+                        Text("\(artist.alternateNames.count)")
+                            .font(.caption.bold())
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Capsule().fill(AppColors.secondaryBackground))
+                    }
+                }
+            }
+        }
+        .listStyle(.plain)
+        .overlay {
+            if viewModel.filteredArtists.isEmpty {
+                ContentUnavailableView("No Artists", systemImage: "music.mic")
             }
         }
     }

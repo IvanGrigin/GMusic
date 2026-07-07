@@ -21,6 +21,7 @@ final class QueueManager {
     private(set) var currentIndex: Int?
     var repeatMode: RepeatMode = .off
     private(set) var shuffleEnabled = false
+    private(set) var reverseOrderEnabled = false
 
     var currentItem: QueueItem? {
         guard let currentIndex, items.indices.contains(currentIndex) else { return nil }
@@ -32,6 +33,9 @@ final class QueueManager {
         currentIndex = items.isEmpty ? nil : min(max(startAt, 0), items.count - 1)
         if shuffleEnabled {
             shuffleRemaining()
+        }
+        if reverseOrderEnabled {
+            reverseCurrentOrder()
         }
     }
 
@@ -53,7 +57,11 @@ final class QueueManager {
     }
 
     func move(fromOffsets source: IndexSet, toOffset destination: Int) {
+        let currentTrackID = currentItem?.trackID
         items.move(fromOffsets: source, toOffset: destination)
+        if let currentTrackID {
+            currentIndex = items.firstIndex(where: { $0.trackID == currentTrackID })
+        }
     }
 
     @discardableResult
@@ -87,6 +95,30 @@ final class QueueManager {
         shuffleEnabled.toggle()
         if shuffleEnabled {
             shuffleRemaining()
+            if reverseOrderEnabled {
+                reverseCurrentOrder()
+            }
+        }
+    }
+
+    func toggleReverseOrder() {
+        reverseOrderEnabled.toggle()
+        reverseCurrentOrder()
+    }
+
+    func jumpTo(index: Int) {
+        guard items.indices.contains(index) else { return }
+        currentIndex = index
+    }
+
+    private func reverseCurrentOrder() {
+        guard !items.isEmpty else { return }
+        let currentTrackID = currentItem?.trackID
+        items.reverse()
+        if let currentTrackID {
+            currentIndex = items.firstIndex(where: { $0.trackID == currentTrackID })
+        } else if !items.isEmpty {
+            currentIndex = 0
         }
     }
 

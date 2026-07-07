@@ -46,6 +46,10 @@ final class TrackEditorViewModel: ObservableObject {
         artworkID = newID
     }
 
+    func removeArtwork() {
+        artworkID = nil
+    }
+
     func save() async -> Bool {
         guard let validTitle = title.trimmedNonEmpty, let validArtist = artistName.trimmedNonEmpty else {
             errorMessage = "Title and artist are required."

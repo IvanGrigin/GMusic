@@ -9,25 +9,30 @@ final class StorageViewModel: ObservableObject {
     @Published var isScanning = false
     @Published var errorMessage: String?
     @Published var lastCleanupSummary: String?
+    @Published private(set) var demoDuplicateFolderName: String?
 
     private let fileStorage: FileStorage
     private let storagePaths: StoragePaths
     private let trackRepository: TrackRepository
     private let externalDuplicateScanner: ExternalDuplicateScanner
     private let externalDuplicateCleaner: ExternalDuplicateCleaner
+    private let demoAudioSeeder: SimulatorDemoAudioSeeder?
 
     init(
         fileStorage: FileStorage,
         storagePaths: StoragePaths,
         trackRepository: TrackRepository,
         externalDuplicateScanner: ExternalDuplicateScanner,
-        externalDuplicateCleaner: ExternalDuplicateCleaner
+        externalDuplicateCleaner: ExternalDuplicateCleaner,
+        demoAudioSeeder: SimulatorDemoAudioSeeder? = nil
     ) {
         self.fileStorage = fileStorage
         self.storagePaths = storagePaths
         self.trackRepository = trackRepository
         self.externalDuplicateScanner = externalDuplicateScanner
         self.externalDuplicateCleaner = externalDuplicateCleaner
+        self.demoAudioSeeder = demoAudioSeeder
+        demoDuplicateFolderName = demoAudioSeeder?.duplicateCleanupFolderName
     }
 
     func refreshStats() async {
@@ -48,6 +53,23 @@ final class StorageViewModel: ObservableObject {
             duplicates = try await SecurityScopedAccess.withAccessAsync(to: url) {
                 try await self.externalDuplicateScanner.findDuplicates(in: url)
             }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func scanDemoDuplicateFolder() async {
+        guard let demoAudioSeeder else {
+            return
+        }
+
+        isScanning = true
+        defer { isScanning = false }
+        do {
+            _ = try demoAudioSeeder.prepareDemoFilesIfNeeded()
+            guard let folderURL = try demoAudioSeeder.duplicateCleanupFolderURL() else { return }
+            duplicates = try await externalDuplicateScanner.findDuplicates(in: folderURL)
+            lastCleanupSummary = duplicates.isEmpty ? "No duplicate files found in the demo duplicate folder." : nil
         } catch {
             errorMessage = error.localizedDescription
         }

@@ -6,6 +6,7 @@ final class PlayerEngine {
     private var player: AVPlayer?
     private var endObserver: NSObjectProtocol?
     private var timeObserverToken: Any?
+    private var playbackRate: Float = 1.0
 
     var onItemDidEnd: (() -> Void)?
     var onTimeUpdate: ((TimeInterval) -> Void)?
@@ -13,6 +14,7 @@ final class PlayerEngine {
     func load(url: URL) {
         removeObservers()
         let item = AVPlayerItem(url: url)
+        item.audioTimePitchAlgorithm = playbackRate > 2.0 ? .varispeed : .timeDomain
         let newPlayer = AVPlayer(playerItem: item)
         player = newPlayer
 
@@ -32,8 +34,22 @@ final class PlayerEngine {
         }
     }
 
-    func play() { player?.play() }
+    func play() { play(at: playbackRate) }
+
+    func play(at rate: Float) {
+        playbackRate = rate
+        player?.currentItem?.audioTimePitchAlgorithm = rate > 2.0 ? .varispeed : .timeDomain
+        player?.playImmediately(atRate: rate)
+    }
+
     func pause() { player?.pause() }
+
+    func setPlaybackRate(_ rate: Float, isPlaying: Bool) {
+        playbackRate = rate
+        player?.currentItem?.audioTimePitchAlgorithm = rate > 2.0 ? .varispeed : .timeDomain
+        guard isPlaying else { return }
+        player?.rate = rate
+    }
 
     func seek(to seconds: TimeInterval) {
         player?.seek(to: CMTime(seconds: seconds, preferredTimescale: 600))

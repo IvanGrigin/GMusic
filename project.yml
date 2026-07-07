@@ -12,13 +12,33 @@ targets:
     deploymentTarget: "17.0"
     sources:
       - path: GMusic
+    dependencies:
+      - target: GMusicWidgets
+        embed: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ivangrigin.GMusic
         TARGETED_DEVICE_FAMILY: "1,2"
-        GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: GMusic/App/Info.plist
+        CODE_SIGN_ENTITLEMENTS: GMusic/App/GMusic.entitlements
         SWIFT_EMIT_LOC_STRINGS: YES
+        SWIFT_VERSION: "5.0"
+
+  GMusicWidgets:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: GMusicWidgets
+      - path: GMusic/Shared/Widgets
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ivangrigin.GMusic.GMusicWidgets
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: GMusicWidgets/Info.plist
+        CODE_SIGN_ENTITLEMENTS: GMusicWidgets/GMusicWidgets.entitlements
+        APPLICATION_EXTENSION_API_ONLY: YES
         SWIFT_VERSION: "5.0"
 
   GMusicTests:
@@ -32,4 +52,5 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ivangrigin.GMusicTests
+        GENERATE_INFOPLIST_FILE: YES
         SWIFT_VERSION: "5.0"
